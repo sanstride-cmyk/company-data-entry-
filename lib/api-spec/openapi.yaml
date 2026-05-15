@@ -1,22 +1,39 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: DocFlow AI Document Processing Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: documents
+    description: Document management
+  - name: extractions
+    description: AI extraction results
+  - name: validations
+    description: Validation engine
+  - name: reviews
+    description: Human review workflow
+  - name: workflows
+    description: Approval workflow tasks
+  - name: vendors
+    description: Vendor management
+  - name: exports
+    description: ERP export configurations and jobs
+  - name: analytics
+    description: Analytics and dashboard data
+  - name: audit
+    description: Audit log
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +41,616 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Documents ──────────────────────────────────────────────────────────────
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List documents with filtering
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [uploaded, processing, extracted, review_pending, approved, rejected, exported]
+        - name: docType
+          in: query
+          schema:
+            type: string
+        - name: vendorId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: dateFrom
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: dateTo
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Paginated document list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentPage"
+    post:
+      operationId: createDocument
+      tags: [documents]
+      summary: Upload a new document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "201":
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get document by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateDocument
+      tags: [documents]
+      summary: Update document metadata or status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUpdate"
+      responses:
+        "200":
+          description: Updated document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /documents/{id}/process:
+    post:
+      operationId: processDocument
+      tags: [documents]
+      summary: Trigger AI extraction on a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Processing started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}/reprocess:
+    post:
+      operationId: reprocessDocument
+      tags: [documents]
+      summary: Re-run extraction on a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reprocessing started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  # ── Extractions ─────────────────────────────────────────────────────────────
+  /documents/{id}/extraction:
+    get:
+      operationId: getExtraction
+      tags: [extractions]
+      summary: Get AI extraction result for a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Extraction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionResult"
+    patch:
+      operationId: updateExtraction
+      tags: [extractions]
+      summary: Update corrected extraction fields
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtractionUpdate"
+      responses:
+        "200":
+          description: Updated extraction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionResult"
+
+  # ── Validations ─────────────────────────────────────────────────────────────
+  /documents/{id}/validations:
+    get:
+      operationId: getValidations
+      tags: [validations]
+      summary: Get validation issues for a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Validation issues list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ValidationIssue"
+
+  # ── Review ─────────────────────────────────────────────────────────────────
+  /documents/{id}/review:
+    post:
+      operationId: submitReview
+      tags: [reviews]
+      summary: Approve or reject a document review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewAction"
+      responses:
+        "200":
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /review-queue:
+    get:
+      operationId: getReviewQueue
+      tags: [reviews]
+      summary: Get documents pending human review
+      parameters:
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [high, medium, low]
+        - name: assignedTo
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Review queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewQueueItem"
+
+  # ── Workflows ───────────────────────────────────────────────────────────────
+  /workflow-tasks:
+    get:
+      operationId: listWorkflowTasks
+      tags: [workflows]
+      summary: List workflow approval tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, escalated]
+        - name: assignedTo
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: Workflow tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowTask"
+    post:
+      operationId: createWorkflowTask
+      tags: [workflows]
+      summary: Create a workflow task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowTaskInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTask"
+
+  /workflow-tasks/{id}/action:
+    post:
+      operationId: actOnWorkflowTask
+      tags: [workflows]
+      summary: Approve, reject or escalate a workflow task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowActionInput"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTask"
+
+  # ── Vendors ─────────────────────────────────────────────────────────────────
+  /vendors:
+    get:
+      operationId: listVendors
+      tags: [vendors]
+      summary: List vendors
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Vendors list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vendor"
+    post:
+      operationId: createVendor
+      tags: [vendors]
+      summary: Create a vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+
+  /vendors/{id}:
+    get:
+      operationId: getVendor
+      tags: [vendors]
+      summary: Get vendor by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Vendor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+    patch:
+      operationId: updateVendor
+      tags: [vendors]
+      summary: Update vendor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorUpdate"
+      responses:
+        "200":
+          description: Updated vendor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+
+  # ── Exports ─────────────────────────────────────────────────────────────────
+  /export-jobs:
+    get:
+      operationId: listExportJobs
+      tags: [exports]
+      summary: List export jobs
+      responses:
+        "200":
+          description: Export jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExportJob"
+    post:
+      operationId: createExportJob
+      tags: [exports]
+      summary: Create an export job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportJobInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportJob"
+
+  /export-jobs/{id}:
+    get:
+      operationId: getExportJob
+      tags: [exports]
+      summary: Get export job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Export job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportJob"
+
+  # ── Audit ────────────────────────────────────────────────────────────────────
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [audit]
+      summary: List audit log entries
+      parameters:
+        - name: documentId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
+  # ── Analytics (safe wow) ─────────────────────────────────────────────────────
+  /analytics/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [analytics]
+      summary: Get dashboard overview statistics
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /analytics/volume:
+    get:
+      operationId: getVolumeStats
+      tags: [analytics]
+      summary: Get document processing volume over time
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d]
+            default: 30d
+      responses:
+        "200":
+          description: Volume data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VolumePoint"
+
+  /analytics/accuracy:
+    get:
+      operationId: getAccuracyStats
+      tags: [analytics]
+      summary: Get extraction accuracy metrics
+      responses:
+        "200":
+          description: Accuracy statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccuracyStats"
+
+  /analytics/vendor-breakdown:
+    get:
+      operationId: getVendorBreakdown
+      tags: [analytics]
+      summary: Get document counts and values by vendor
+      responses:
+        "200":
+          description: Vendor breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VendorBreakdown"
+
+  /analytics/doc-type-breakdown:
+    get:
+      operationId: getDocTypeBreakdown
+      tags: [analytics]
+      summary: Get document counts by type
+      responses:
+        "200":
+          description: Document type breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocTypeBreakdown"
+
+  /analytics/pending-review:
+    get:
+      operationId: getPendingReviewSummary
+      tags: [analytics]
+      summary: Get summary of documents awaiting review
+      responses:
+        "200":
+          description: Pending review summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingReviewSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +658,613 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    # ── Document ───────────────────────────────────────────────────────────────
+    Document:
+      type: object
+      required: [id, fileName, fileType, status, docType, uploadSource, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSizeBytes:
+          type: ["integer", "null"]
+        fileUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [uploaded, processing, extracted, review_pending, approved, rejected, exported]
+        docType:
+          type: string
+          enum: [invoice, gst_bill, purchase_order, delivery_challan, shipment_slip, warehouse_doc, vendor_bill, receipt, other]
+        uploadSource:
+          type: string
+          enum: [web_upload, email, whatsapp, api, bulk]
+        vendorId:
+          type: ["integer", "null"]
+        vendorName:
+          type: ["string", "null"]
+        confidenceScore:
+          type: ["number", "null"]
+        isDuplicate:
+          type: boolean
+        duplicateOfId:
+          type: ["integer", "null"]
+        assignedTo:
+          type: ["string", "null"]
+        reviewComment:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+        tags:
+          type: array
+          items:
+            type: string
+        processingStartedAt:
+          type: ["string", "null"]
+        processingCompletedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    DocumentPage:
+      type: object
+      required: [documents, total, page, limit]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    DocumentInput:
+      type: object
+      required: [fileName, fileType, docType, uploadSource]
+      properties:
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSizeBytes:
+          type: ["integer", "null"]
+        fileUrl:
+          type: ["string", "null"]
+        docType:
+          type: string
+          enum: [invoice, gst_bill, purchase_order, delivery_challan, shipment_slip, warehouse_doc, vendor_bill, receipt, other]
+        uploadSource:
+          type: string
+          enum: [web_upload, email, whatsapp, api, bulk]
+        vendorId:
+          type: ["integer", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+        tags:
+          type: array
+          items:
+            type: string
+
+    DocumentUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [uploaded, processing, extracted, review_pending, approved, rejected, exported]
+        docType:
+          type: string
+          enum: [invoice, gst_bill, purchase_order, delivery_challan, shipment_slip, warehouse_doc, vendor_bill, receipt, other]
+        vendorId:
+          type: ["integer", "null"]
+        assignedTo:
+          type: ["string", "null"]
+        reviewComment:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+        tags:
+          type: array
+          items:
+            type: string
+
+    # ── Extraction ──────────────────────────────────────────────────────────────
+    ExtractionResult:
+      type: object
+      required: [id, documentId, createdAt]
+      properties:
+        id:
+          type: integer
+        documentId:
+          type: integer
+        invoiceNumber:
+          type: ["string", "null"]
+        invoiceDate:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+        poNumber:
+          type: ["string", "null"]
+        gstin:
+          type: ["string", "null"]
+        vendorGstin:
+          type: ["string", "null"]
+        vendorName:
+          type: ["string", "null"]
+        vendorAddress:
+          type: ["string", "null"]
+        vendorPhone:
+          type: ["string", "null"]
+        vendorEmail:
+          type: ["string", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerAddress:
+          type: ["string", "null"]
+        shipmentId:
+          type: ["string", "null"]
+        warehouseId:
+          type: ["string", "null"]
+        lineItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineItem"
+        subtotal:
+          type: ["number", "null"]
+        taxAmount:
+          type: ["number", "null"]
+        cgst:
+          type: ["number", "null"]
+        sgst:
+          type: ["number", "null"]
+        igst:
+          type: ["number", "null"]
+        totalAmount:
+          type: ["number", "null"]
+        currency:
+          type: ["string", "null"]
+        paymentTerms:
+          type: ["string", "null"]
+        bankDetails:
+          type: ["string", "null"]
+        rawText:
+          type: ["string", "null"]
+        fieldConfidences:
+          type: object
+          additionalProperties:
+            type: number
+        isHumanCorrected:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+
+    LineItem:
+      type: object
+      properties:
+        description:
+          type: string
+        hsnCode:
+          type: ["string", "null"]
+        quantity:
+          type: ["number", "null"]
+        unit:
+          type: ["string", "null"]
+        unitPrice:
+          type: ["number", "null"]
+        taxRate:
+          type: ["number", "null"]
+        amount:
+          type: ["number", "null"]
+
+    ExtractionUpdate:
+      type: object
+      properties:
+        invoiceNumber:
+          type: ["string", "null"]
+        invoiceDate:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+        poNumber:
+          type: ["string", "null"]
+        gstin:
+          type: ["string", "null"]
+        vendorGstin:
+          type: ["string", "null"]
+        vendorName:
+          type: ["string", "null"]
+        vendorAddress:
+          type: ["string", "null"]
+        vendorPhone:
+          type: ["string", "null"]
+        vendorEmail:
+          type: ["string", "null"]
+        customerName:
+          type: ["string", "null"]
+        customerAddress:
+          type: ["string", "null"]
+        shipmentId:
+          type: ["string", "null"]
+        warehouseId:
+          type: ["string", "null"]
+        lineItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineItem"
+        subtotal:
+          type: ["number", "null"]
+        taxAmount:
+          type: ["number", "null"]
+        cgst:
+          type: ["number", "null"]
+        sgst:
+          type: ["number", "null"]
+        igst:
+          type: ["number", "null"]
+        totalAmount:
+          type: ["number", "null"]
+        currency:
+          type: ["string", "null"]
+        paymentTerms:
+          type: ["string", "null"]
+
+    # ── Validation ──────────────────────────────────────────────────────────────
+    ValidationIssue:
+      type: object
+      required: [id, documentId, ruleCode, severity, message, status]
+      properties:
+        id:
+          type: integer
+        documentId:
+          type: integer
+        ruleCode:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning, info]
+        message:
+          type: string
+        field:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [open, resolved, ignored]
+
+    # ── Review ──────────────────────────────────────────────────────────────────
+    ReviewAction:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject, request_changes]
+        comment:
+          type: ["string", "null"]
+        assignedTo:
+          type: ["string", "null"]
+
+    ReviewQueueItem:
+      type: object
+      required: [document, validationCount, pendingSince]
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        validationCount:
+          type: integer
+        pendingSince:
+          type: string
+        assignedTo:
+          type: ["string", "null"]
+
+    # ── Workflow ────────────────────────────────────────────────────────────────
+    WorkflowTask:
+      type: object
+      required: [id, documentId, taskType, status, createdAt]
+      properties:
+        id:
+          type: integer
+        documentId:
+          type: integer
+        taskType:
+          type: string
+          enum: [review, approval, export, escalation]
+        status:
+          type: string
+          enum: [pending, approved, rejected, escalated]
+        assignedTo:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+        comment:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        completedBy:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    WorkflowTaskInput:
+      type: object
+      required: [documentId, taskType]
+      properties:
+        documentId:
+          type: integer
+        taskType:
+          type: string
+          enum: [review, approval, export, escalation]
+        assignedTo:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+
+    WorkflowActionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject, escalate]
+        comment:
+          type: ["string", "null"]
+        completedBy:
+          type: string
+
+    # ── Vendor ──────────────────────────────────────────────────────────────────
+    Vendor:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        gstin:
+          type: ["string", "null"]
+        pan:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        totalDocuments:
+          type: integer
+        createdAt:
+          type: string
+
+    VendorInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        gstin:
+          type: ["string", "null"]
+        pan:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+
+    VendorUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        gstin:
+          type: ["string", "null"]
+        pan:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+
+    # ── Export ──────────────────────────────────────────────────────────────────
+    ExportJob:
+      type: object
+      required: [id, exportFormat, status, createdAt]
+      properties:
+        id:
+          type: integer
+        exportFormat:
+          type: string
+          enum: [sap, tally, zoho, oracle, busy, excel, csv, json, google_sheets]
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        documentIds:
+          type: array
+          items:
+            type: integer
+        documentCount:
+          type: integer
+        downloadUrl:
+          type: ["string", "null"]
+        fieldMapping:
+          type: object
+          additionalProperties:
+            type: string
+        errorMessage:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    ExportJobInput:
+      type: object
+      required: [exportFormat, documentIds]
+      properties:
+        exportFormat:
+          type: string
+          enum: [sap, tally, zoho, oracle, busy, excel, csv, json, google_sheets]
+        documentIds:
+          type: array
+          items:
+            type: integer
+        fieldMapping:
+          type: object
+          additionalProperties:
+            type: string
+
+    # ── Audit ────────────────────────────────────────────────────────────────────
+    AuditLog:
+      type: object
+      required: [id, action, actor, createdAt]
+      properties:
+        id:
+          type: integer
+        documentId:
+          type: ["integer", "null"]
+        action:
+          type: string
+        actor:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        ipAddress:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    # ── Analytics ────────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [totalDocuments, processingToday, pendingReview, approvedToday, rejectedToday, failedToday, avgConfidenceScore, duplicatesDetected, totalExported]
+      properties:
+        totalDocuments:
+          type: integer
+        processingToday:
+          type: integer
+        pendingReview:
+          type: integer
+        approvedToday:
+          type: integer
+        rejectedToday:
+          type: integer
+        failedToday:
+          type: integer
+        avgConfidenceScore:
+          type: number
+        duplicatesDetected:
+          type: integer
+        totalExported:
+          type: integer
+        totalValueProcessed:
+          type: number
+        documentsThisWeek:
+          type: integer
+        documentsLastWeek:
+          type: integer
+
+    VolumePoint:
+      type: object
+      required: [date, uploaded, processed, approved, rejected]
+      properties:
+        date:
+          type: string
+        uploaded:
+          type: integer
+        processed:
+          type: integer
+        approved:
+          type: integer
+        rejected:
+          type: integer
+
+    AccuracyStats:
+      type: object
+      required: [overallAccuracy, fieldAccuracies, correctionRate, avgProcessingTimeMs]
+      properties:
+        overallAccuracy:
+          type: number
+        fieldAccuracies:
+          type: object
+          additionalProperties:
+            type: number
+        correctionRate:
+          type: number
+        avgProcessingTimeMs:
+          type: number
+        highConfidenceCount:
+          type: integer
+        mediumConfidenceCount:
+          type: integer
+        lowConfidenceCount:
+          type: integer
+
+    VendorBreakdown:
+      type: object
+      required: [vendorId, vendorName, documentCount, totalValue]
+      properties:
+        vendorId:
+          type: ["integer", "null"]
+        vendorName:
+          type: string
+        documentCount:
+          type: integer
+        totalValue:
+          type: number
+        avgConfidence:
+          type: number
+
+    DocTypeBreakdown:
+      type: object
+      required: [docType, count, percentage]
+      properties:
+        docType:
+          type: string
+        count:
+          type: integer
+        percentage:
+          type: number
+
+    PendingReviewSummary:
+      type: object
+      required: [total, highPriority, mediumPriority, lowPriority, overdueCount, avgWaitHours]
+      properties:
+        total:
+          type: integer
+        highPriority:
+          type: integer
+        mediumPriority:
+          type: integer
+        lowPriority:
+          type: integer
+        overdueCount:
+          type: integer
+        avgWaitHours:
+          type: number

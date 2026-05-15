@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "DocFlow — AI Document Processing Platform"
+version = "1.0.0"
+id = "artifacts/docflow"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24257
+
+[services.development]
+run = "pnpm --filter @workspace/docflow run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/docflow", "run", "build" ]
+publicDir = "artifacts/docflow/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24257"
+BASE_PATH = "/"
